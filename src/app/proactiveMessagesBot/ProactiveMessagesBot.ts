@@ -1,14 +1,6 @@
-import { BotDeclaration, MessageExtensionDeclaration, PreventIframe } from "express-msteams-host";
-import * as debug from "debug";
-import { DialogSet, DialogState } from "botbuilder-dialogs";
-import { StatePropertyAccessor, CardFactory, TurnContext, MemoryStorage, ConversationState, ActivityTypes, TeamsActivityHandler, ConversationReference, MessageFactory, ConversationParameters, Activity, BotFrameworkAdapter, TeamsInfo } from "botbuilder";
-import HelpDialog from "./dialogs/HelpDialog";
-import WelcomeCard from "./dialogs/WelcomeDialog";
-import { initTableSvc, insertUserReference, getUserReference, IUserReference, insertUserID } from "../tableService";
-
-
-// Initialize debug logging module
-const log = debug("msteams");
+import { BotDeclaration } from "express-msteams-host";
+import { TurnContext, MemoryStorage, TeamsActivityHandler, MessageFactory, ConversationParameters, Activity, BotFrameworkAdapter, TeamsInfo } from "botbuilder";
+import { initTableSvc, insertUserReference, insertUserID } from "../tableService";
 
 /**
  * Implementation for proactive messages Bot
@@ -20,40 +12,24 @@ const log = debug("msteams");
     process.env.MICROSOFT_APP_PASSWORD)
 
 export class ProactiveMessagesBot extends TeamsActivityHandler {
-    private readonly conversationState: ConversationState;
-    private readonly dialogs: DialogSet;
-    private dialogState: StatePropertyAccessor<DialogState>;
 
     /**
      * The constructor
      * @param conversationState
      */
-    public constructor(conversationState: ConversationState) {
+    public constructor() {
         super();
 
         // Init table service
         initTableSvc();
-        
-        this.conversationState = conversationState;
-        this.dialogState = conversationState.createProperty("dialogState");
-        this.dialogs = new DialogSet(this.dialogState);
-        this.dialogs.add(new HelpDialog("help"));
 
         // Set up the Activity processing
-
         this.onMessage(async (context: TurnContext): Promise<void> => {
-            // Save conversation reference
+
             if (context.activity.conversation.conversationType === "personal") {
-                // log(context.activity);
                 switch (context.activity.text) {
                     case 'get':
-                        await getUserReference(context.activity.from.aadObjectId as string).then(async (userRefence: IUserReference) => {
-                            // log(userRefence);
-                            const notifyConversationReference: Partial<ConversationReference> = JSON.parse(userRefence.reference);
-                            await context.adapter.continueConversation(notifyConversationReference, async turnContext => {
-                                await turnContext.sendActivity("this is a continued conversation");
-                            });
-                        });
+                        await this.createUserConversation(context);
                         break;
                     case 'channel':
                         await this.teamsCreateConversation(context);
@@ -79,17 +55,13 @@ export class ProactiveMessagesBot extends TeamsActivityHandler {
             }
 
             await context.sendActivity("thanks for your message 😀");
-            
-            // Save state changes
-            return this.conversationState.saveChanges(context);
         });
 
         this.onConversationUpdate(async (context: TurnContext): Promise<void> => {
             if (context.activity.membersAdded && context.activity.membersAdded.length !== 0) {
                 for (const idx in context.activity.membersAdded) {
                     if (context.activity.membersAdded[idx].id === context.activity.recipient.id) {
-                        const welcomeCard = CardFactory.adaptiveCard(WelcomeCard);
-                        await context.sendActivity({ attachments: [welcomeCard] });
+                        await context.sendActivity("thanks for your message 😀");
                     }
                 }
             }
@@ -108,7 +80,7 @@ export class ProactiveMessagesBot extends TeamsActivityHandler {
 
    async teamsCreateConversation(context: TurnContext) {
     // Create Channel conversation
-    const message = MessageFactory.text("This is a channel message") as Activity;
+    let message = MessageFactory.text("This is the first channel message") as Activity;
    
     const conversationParameters: ConversationParameters = {
         isGroup: true,
@@ -127,9 +99,42 @@ export class ProactiveMessagesBot extends TeamsActivityHandler {
     const notifyAdapter = context.adapter as BotFrameworkAdapter;
 
     const connectorClient = notifyAdapter.createConnectorClient(context.activity.serviceUrl);
-    await connectorClient.conversations.createConversation(conversationParameters);
+    const response = await connectorClient.conversations.createConversation(conversationParameters);
     await context.sendActivity("conversation sent to channel");
+
+    // Send reply to channel
+    message = MessageFactory.text("This is the second channel message") as Activity;
+    await connectorClient.conversations.sendToConversation(response.id, message);
+    
     }
 
+    async createUserConversation(context: TurnContext) {
+        // Create User Conversation
+        const message = MessageFactory.text("This is a proactive message") as Activity;
+       
+        const conversationParameters = {
+            isGroup: false,
+            channelData: {
+                tenant: {
+                    id: process.env.TENANT_ID
+                }
+            },
+            members: [
+                {
+                    id: context.activity.from.id,
+                    name: context.activity.from.name
+                }
+            ]
+        };
+    
+        const notifyAdapter = context.adapter as BotFrameworkAdapter;
+        const parametersTalk = conversationParameters as ConversationParameters;
+    
+        const connectorClient = notifyAdapter.createConnectorClient(context.activity.serviceUrl);
+        const response = await connectorClient.conversations.createConversation(parametersTalk);
+        await connectorClient.conversations.sendToConversation(response.id, message);
+        await context.sendActivity("conversation sent to user");
+        
+        }
 
 }

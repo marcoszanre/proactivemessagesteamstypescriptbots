@@ -160,7 +160,7 @@ express.post("/createUserConversation", (req, res, next) => {
             const message = MessageFactory.text("This is a user message 😀") as Activity;
             const connectorClient = adapter.createConnectorClient(process.env.SERVICE_URL as string);
             await connectorClient.conversations.sendToConversation(convID.conversationID, message);
-            
+
             res.send("conversation continued");
             next();
         } else {
