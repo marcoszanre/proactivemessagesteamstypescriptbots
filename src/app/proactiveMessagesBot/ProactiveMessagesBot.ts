@@ -1,6 +1,7 @@
 import { BotDeclaration } from "express-msteams-host";
 import { TurnContext, MemoryStorage, TeamsActivityHandler, MessageFactory, ConversationParameters, Activity, BotFrameworkAdapter, TeamsInfo } from "botbuilder";
 import { initTableSvc, insertUserReference, insertUserID } from "../tableService";
+import { sendChannelMessage, sendUserMessage, initConnectorClient } from "../connectorClient";
 
 /**
  * Implementation for proactive messages Bot
@@ -23,6 +24,9 @@ export class ProactiveMessagesBot extends TeamsActivityHandler {
         // Init table service
         initTableSvc();
 
+        // Init Connector Client
+        initConnectorClient();
+
         // Set up the Activity processing
         this.onMessage(async (context: TurnContext): Promise<void> => {
 
@@ -33,6 +37,14 @@ export class ProactiveMessagesBot extends TeamsActivityHandler {
                         break;
                     case 'channel':
                         await this.teamsCreateConversation(context);
+                        break;
+                    case 'senduser':
+                        await sendUserMessage(`Proactive message: ${context.activity.text}`, "29:1r48gyAgyrbiAeDNnSVcd99hKNML6XcwBorYH4OOxZjzBCFYHtRKZMW3c2at7SLedQCCYvGTYWbvbw8VT5fBAjA");
+                        await context.sendActivity("sendUser Done 😎");
+                        break;
+                    case 'sendchannel':
+                        await sendChannelMessage(`Proactive message: ${context.activity.text}`);
+                        await context.sendActivity("sendChannel Done 😎");
                         break;
                     default:
                         insertUserReference(context);
