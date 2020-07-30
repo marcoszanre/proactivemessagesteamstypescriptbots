@@ -15,19 +15,19 @@ let connectorClient;
 
 
 const initConnectorClient = () => {
-    adapter = new BotFrameworkAdapter({
-        appId: process.env.MICROSOFT_APP_ID,
-        appPassword: process.env.MICROSOFT_APP_PASSWORD
-    });
 
-    BotConnector.MicrosoftAppCredentials.trustServiceUrl(
-        process.env.SERVICE_URL
-    );
+        adapter = new BotFrameworkAdapter({
+            appId: process.env.MICROSOFT_APP_ID,
+            appPassword: process.env.MICROSOFT_APP_PASSWORD
+        });
 
-    connectorClient = adapter.createConnectorClient(process.env.SERVICE_URL as string);
+        BotConnector.MicrosoftAppCredentials.trustServiceUrl(
+            process.env.SERVICE_URL
+        );
 
-    log("connector client initialized");
+        connectorClient = adapter.createConnectorClient(process.env.SERVICE_URL as string);
 
+        log("connector client initialized");
 };
 
 
