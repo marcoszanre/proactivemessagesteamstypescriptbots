@@ -57,13 +57,14 @@ const sendUserMessage = async (messageTxt: string, userId: string) => {
         const parametersTalk = conversationParameters as ConversationParameters;
         const response = await connectorClient.conversations.createConversation(parametersTalk);
         await connectorClient.conversations.sendToConversation(response.id, message);
+
         log("user message sent");
 };
 
 
 const sendChannelMessage = async (messageTxt: string) => {
 
-        const message = MessageFactory.text(messageTxt) as Activity;
+        let message = MessageFactory.text(messageTxt) as Activity;
 
         // Channel Scope
         const conversationParameters = {
@@ -77,7 +78,12 @@ const sendChannelMessage = async (messageTxt: string) => {
         };
 
         const conversationParametersReference = conversationParameters as ConversationParameters;
-        await connectorClient.conversations.createConversation(conversationParametersReference);
+        const response = await connectorClient.conversations.createConversation(conversationParametersReference);
+
+        // Send reply to channel
+        message = MessageFactory.text("This is the first reply in a new channel message") as Activity;
+        await connectorClient.conversations.sendToConversation(response.id, message);
+
         log("channel message sent");
 };
 
